@@ -1,0 +1,17 @@
+[[redirects]]
+  from = "/*"
+  to = "/web-interface.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+
+[[headers]]
+  for = "/web-interface.html"
+  [headers.values]
+    Content-Type = "text/html"
+    Cache-Control = "no-cache, no-store, must-revalidate" 

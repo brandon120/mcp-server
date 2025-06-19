@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESPStreamCloud MCP Server - Testing Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .status {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .tokens {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESPStreamCloud MCP Server - Testing Interface</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Authentication</h2>
+            
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="username" placeholder="Enter username">
+            </div>
+            
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" placeholder="Enter password">
+            </div>
+            
+            <button onclick="registerUser()">Register User</button>
+            <button onclick="loginUser()">Login User</button>
+            
+            <div id="authResult" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Chat Management</h2>
+            
+            <div class="form-group">
+                <label>Receiver Username:</label>
+                <input type="text" id="receiverUsername" placeholder="Username to send request to">
+            </div>
+            
+            <button onclick="sendChatRequest()">Send Chat Request</button>
+            <button onclick="getChatRequests()">Get Chat Requests</button>
+            
+            <div class="form-group">
+                <label>Request ID:</label>
+                <input type="text" id="requestId" placeholder="Chat request ID">
+            </div>
+            
+            <button onclick="acceptRequest()">Accept Request</button>
+            <button onclick="rejectRequest()">Reject Request</button>
+            
+            <div id="chatResult" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Streaming Test</h2>
+            
+            <div class="form-group">
+                <label>User ID:</label>
+                <input type="text" id="userId" placeholder="User ID for streaming">
+            </div>
+            
+            <button onclick="testStreamFrame()">Test Stream Frame</button>
+            <button onclick="testWebSocket()">Test WebSocket</button>
+            
+            <div id="streamResult" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="section">
+            <h2>System Status</h2>
+            
+            <button onclick="getSystemStatus()">Get System Status</button>
+            <button onclick="getHealth()">Health Check</button>
+            
+            <div id="statusResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <div class="section" style="grid-column: 1 / -1; margin-top: 20px;">
+        <h2>Stored Tokens</h2>
+        <div id="tokens" class="result tokens"></div>
+    </div>
+
+    <script>
+        const MCP_SERVER_URL = 'https://mcp-server-production-bd06.up.railway.app';
+        const API_BASE_URL = 'https://camerachatbackend-production.up.railway.app';
+        let storedTokens = [];
+        
+        function showResult(elementId, message, type = 'status') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+        
+        function updateTokens() {
+            const tokensDiv = document.getElementById('tokens');
+            if (storedTokens.length === 0) {
+                tokensDiv.textContent = 'No tokens stored';
+            } else {
+                tokensDiv.textContent = storedTokens.map(t => 
+                    `${t.username}: ${t.token.substring(0, 20)}...`
+                ).join('\n');
+            }
+        }
+        
+        async function registerUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${MCP_SERVER_URL}/test/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    storedTokens.push({ username, token: data.token });
+                    updateTokens();
+                    showResult('authResult', `User ${username} registered successfully!\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showResult('authResult', `Registration failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('authResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loginUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${MCP_SERVER_URL}/test/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    storedTokens.push({ username, token: data.token });
+                    updateTokens();
+                    showResult('authResult', `User ${username} logged in successfully!\nToken: ${data.token.substring(0, 20)}...`, 'success');
+                } else {
+                    showResult('authResult', `Login failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('authResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function sendChatRequest() {
+            const receiverUsername = document.getElementById('receiverUsername').value;
+            const senderToken = storedTokens[0]?.token;
+            
+            if (!senderToken) {
+                showResult('chatResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/request`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${senderToken}`
+                    },
+                    body: JSON.stringify({ receiverUsername })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('chatResult', `Chat request sent successfully!\nRequest ID: ${data.requestId}`, 'success');
+                } else {
+                    showResult('chatResult', `Chat request failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('chatResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getChatRequests() {
+            const token = storedTokens[0]?.token;
+            
+            if (!token) {
+                showResult('chatResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/requests`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const requests = data.map(req => 
+                        `ID: ${req.id}, From: ${req.sender_username}, Status: ${req.status}`
+                    ).join('\n');
+                    showResult('chatResult', `Chat requests:\n${requests || 'No pending requests'}`, 'success');
+                } else {
+                    showResult('chatResult', `Failed to get chat requests: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('chatResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function acceptRequest() {
+            const requestId = document.getElementById('requestId').value;
+            const token = storedTokens[0]?.token;
+            
+            if (!token) {
+                showResult('chatResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/respond`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ requestId, accepted: true })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('chatResult', `Chat request accepted: ${data.message}`, 'success');
+                } else {
+                    showResult('chatResult', `Failed to accept request: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('chatResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function rejectRequest() {
+            const requestId = document.getElementById('requestId').value;
+            const token = storedTokens[0]?.token;
+            
+            if (!token) {
+                showResult('chatResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/respond`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ requestId, accepted: false })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('chatResult', `Chat request rejected: ${data.message}`, 'success');
+                } else {
+                    showResult('chatResult', `Failed to reject request: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('chatResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testStreamFrame() {
+            const userId = document.getElementById('userId').value;
+            const token = storedTokens[0]?.token;
+            
+            if (!token) {
+                showResult('streamResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                // Create a simple test image (1x1 pixel JPEG)
+                const testImageBuffer = new Uint8Array([
+                    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+                    0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+                    0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+                    0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+                    0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
+                    0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
+                    0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
+                    0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x01,
+                    0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+                    0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0xFF, 0xC4,
+                    0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xDA, 0x00, 0x0C,
+                    0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F, 0x00, 0x8A, 0x00,
+                    0x07, 0xFF, 0xD9
+                ]);
+                
+                const response = await fetch(`${API_BASE_URL}/api/stream/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'image/jpeg'
+                    },
+                    body: testImageBuffer
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('streamResult', `Frame sent successfully: ${data.message}`, 'success');
+                } else {
+                    showResult('streamResult', `Failed to send frame: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('streamResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testWebSocket() {
+            const token = storedTokens[0]?.token;
+            
+            if (!token) {
+                showResult('streamResult', 'No token available. Please register or login first.', 'error');
+                return;
+            }
+            
+            try {
+                const ws = new WebSocket(`${API_BASE_URL.replace('https', 'wss')}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                ws.onopen = () => {
+                    showResult('streamResult', 'WebSocket connection established successfully!', 'success');
+                    ws.close();
+                };
+                
+                ws.onerror = (error) => {
+                    showResult('streamResult', `WebSocket connection failed: ${error.message}`, 'error');
+                };
+                
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        showResult('streamResult', 'WebSocket connection timeout', 'error');
+                        ws.close();
+                    }
+                }, 5000);
+            } catch (error) {
+                showResult('streamResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getSystemStatus() {
+            try {
+                const response = await fetch(`${MCP_SERVER_URL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('statusResult', `System Status:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('statusResult', 'Failed to get system status', 'error');
+                }
+            } catch (error) {
+                showResult('statusResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('statusResult', `Health Check:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('statusResult', 'Health check failed', 'error');
+                }
+            } catch (error) {
+                showResult('statusResult', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize
+        updateTokens();
+    </script>
+</body>
+</html> 

@@ -1,7 +1,7 @@
 {
   "name": "espstreamcloud-mcp-server",
   "version": "1.0.0",
-  "description": "MCP Server for testing ESPStreamCloud API",
+  "description": "Express server with MCP capabilities for testing ESPStreamCloud API",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
