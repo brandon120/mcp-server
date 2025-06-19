@@ -424,6 +424,25 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/test-api-connection', async (req, res) => {
+  try {
+    console.log('Testing connection to main API:', API_BASE_URL);
+    const response = await axios.get(`${API_BASE_URL}/health`);
+    res.json({ 
+      success: true, 
+      mainApiHealth: response.data,
+      mainApiUrl: API_BASE_URL
+    });
+  } catch (error) {
+    console.error('API connection test failed:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      mainApiUrl: API_BASE_URL
+    });
+  }
+});
+
 app.get('/test-users', (req, res) => {
   const users = Array.from(testUsers.entries()).map(([username, data]) => ({
     username,
@@ -439,31 +458,77 @@ app.get('/active-connections', (req, res) => {
 
 app.post('/test/register', async (req, res) => {
   try {
+    console.log('Register request received:', { body: req.body });
+    
     const { username, password } = req.body;
+    
+    if (!username || !password) {
+      console.log('Missing username or password');
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    console.log('Making request to main API:', `${API_BASE_URL}/api/auth/register`);
+    
     const response = await axios.post(`${API_BASE_URL}/api/auth/register`, {
       username,
       password
     });
     
+    console.log('Main API response:', { status: response.status, data: response.data });
+    
     testUsers.set(username, { token: response.data.token, password });
     res.json({ success: true, token: response.data.token });
   } catch (error) {
-    res.status(400).json({ error: error.response?.data?.error || error.message });
+    console.error('Register error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config
+    });
+    
+    if (error.response?.data?.error) {
+      res.status(400).json({ error: error.response.data.error });
+    } else {
+      res.status(400).json({ error: error.message });
+    }
   }
 });
 
 app.post('/test/login', async (req, res) => {
   try {
+    console.log('Login request received:', { body: req.body });
+    
     const { username, password } = req.body;
+    
+    if (!username || !password) {
+      console.log('Missing username or password');
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    console.log('Making request to main API:', `${API_BASE_URL}/api/auth/login`);
+    
     const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
       username,
       password
     });
     
+    console.log('Main API response:', { status: response.status, data: response.data });
+    
     testUsers.set(username, { token: response.data.token, password });
     res.json({ success: true, token: response.data.token });
   } catch (error) {
-    res.status(400).json({ error: error.response?.data?.error || error.message });
+    console.error('Login error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config
+    });
+    
+    if (error.response?.data?.error) {
+      res.status(400).json({ error: error.response.data.error });
+    } else {
+      res.status(400).json({ error: error.message });
+    }
   }
 });
 
