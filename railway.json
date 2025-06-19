@@ -1,0 +1,10 @@
+{
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/health",
+    "envs": [
+      "API_BASE_URL",
+      "PORT"
+    ]
+  }
+} 
