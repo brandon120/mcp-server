@@ -409,6 +409,8 @@ class ESPStreamCloudMCPServer {
   }
 
   async run() {
+    // For Railway deployment, we need to serve the Express app
+    // The MCP protocol server will run in the background
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.log('MCP Server started');
@@ -467,17 +469,20 @@ app.post('/test/login', async (req, res) => {
   }
 });
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Start both MCP server and Express app
 async function startServer() {
   const mcpServer = new ESPStreamCloudMCPServer();
   
-  // Start MCP server
-  await mcpServer.run();
+  // Start MCP server in background
+  mcpServer.run().catch(console.error);
   
   // Start Express app for testing interface
   app.listen(PORT, () => {
     console.log(`MCP Server running on port ${PORT}`);
-    console.log(`Testing interface available at http://localhost:${PORT}`);
+    console.log(`Testing interface available at http://localhost:${PORT}/web-interface.html`);
     console.log(`API Base URL: ${API_BASE_URL}`);
   });
 }
